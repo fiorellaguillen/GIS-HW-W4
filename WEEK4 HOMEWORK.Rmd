@@ -1,0 +1,77 @@
+---
+title: "CASA0003_ Week4_Homework"
+author: "Fiorella Guillen Hurtado"
+date: "2024-10-28"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Comparing global gender inequality index between 2019 and 2010
+
+#### Load all libraries
+
+Loading libraries for data reading, data wrangling and plotting.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+library(here)
+library(sf)
+library(tidyverse)
+library(countrycode)
+library(tmap)
+library(ggplot2)
+```
+
+#### Define variables
+
+Read csv file with global gender inequality indexes and shapefile with world countries' spatial data.
+
+```{r message=FALSE, warning=FALSE}
+world_countries <- st_read(here("data","World_Countries_Generalized.shp"))
+inequality_data <- read.csv(here("data","HDR23-24_Composite_indices_complete_time_series.csv"))
+
+```
+
+#### Standardize country codes
+
+As both variables have different type of country codes, it is necessary to standardize them, in this case to ISO2C type. Also, as there are some values that don't correspond to country codes, we define "warn=FALSE", in order to ignore them.
+
+```{r}
+inequality_data$country_code <- countrycode(inequality_data$iso3, origin="iso3c", destination="iso2c", warn="FALSE")
+```
+
+#### Clean and wrangle data sets
+
+In order to manage smaller data sets, only necessary columns will be selected using dplyr library. Also, a new column including the difference between de gender inequality index between 2019 and 2010, will be added.
+
+```{r}
+inequality_data_clean <-  inequality_data %>%
+  dplyr::select("country_code","hdi_2010","hdi_2019")
+
+world_countries_clean <- world_countries %>%
+  dplyr::select("ISO", "COUNTRY","geometry")
+
+inequality_data_clean <- inequality_data_clean %>%
+    mutate(hdi_difference= (hdi_2019 - hdi_2010))
+  
+```
+
+#### Join inequality data to spatial data
+
+Using a left join, both data sets will be merged by their country codes.
+
+```{r}
+countries_inequality <- world_countries_clean %>%
+  left_join(.,
+            inequality_data_clean,
+            by=c("ISO"="country_code"))
+```
+
+#### Plot data
+
+A quick thematic map is created. This map presents in a darker green the countries that have increased their inequality's index the most. In a lighter green, we can see countries that have maintained their inequality's index, and in purple, we can see the countries that have reduced their inequality's index in the 9 years analysed.
+
+```{r fig.height=15, fig.width=20, message=FALSE, warning=FALSE}
+tmap_mode("plot")
+qtm(countries_inequality, fill= "hdi_difference")
+```
